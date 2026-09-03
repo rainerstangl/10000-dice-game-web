@@ -177,7 +177,7 @@
       if (roomId) {
         targetRoomId = roomId;
         gameMode = "join";
-        myPlayerNum = 2; // Remote client is strictly Player 2
+        myPlayerNum = 2;
         document.getElementById('mode-select-box').style.display = 'none';
         document.getElementById('p2-input-group').style.display = 'none';
         document.getElementById('p1-label').innerText = "Enter Your Name to Join:";
@@ -264,7 +264,6 @@
   function setupNetworking() {
     conn.on('open', function() {
       if (myPlayerNum === 2) {
-        // Guest sends their custom name to Host
         conn.send({ type: 'GUEST_JOINED', guestName: p2Name });
       }
     });
@@ -272,7 +271,6 @@
     conn.on('data', function(data) {
       if (data.type === 'GUEST_JOINED' && myPlayerNum === 1) {
         p2Name = data.guestName;
-        // Host broadcasts final verified player names to Guest
         conn.send({ type: 'INIT_GAME', p1Name: p1Name, p2Name: p2Name });
         launchGame();
       } else if (data.type === 'INIT_GAME' && myPlayerNum === 2) {
@@ -371,6 +369,7 @@
   function roll() {
     if (isLocked) return;
 
+    // Process previous selected points if this isn't the initial roll
     if (hasRolled) {
       var selVals = [];
       dice.forEach(function(d){ if(d.sel) selVals.push(d.val); });
@@ -388,11 +387,15 @@
       }
     }
 
+    // Always mark as rolled when button is pressed
+    hasRolled = true;
+
+    // Roll non-banked dice
     dice.forEach(function(d){
       if (!d.bnk) d.val = Math.floor(Math.random() * 6) + 1;
     });
-    hasRolled = true;
 
+    // Evaluate active rolled dice
     var activeVals = [];
     dice.forEach(function(d){ if(!d.bnk) activeVals.push(d.val); });
     
@@ -400,20 +403,22 @@
     activeVals.forEach(function(v){ c[v] = (c[v]||0)+1; });
     var canScore = c[1] || c[5] || Object.keys(c).some(function(k){ return c[k]>=3; }) || activeVals.length === 6;
 
-    draw();
-
     if (!canScore) {
-      setMsg("BUST! No scoring dice.");
+      turnScore = 0;
       isLocked = true;
+      draw();
+      setMsg("BUST! No scoring dice.");
+      
       setTimeout(function() {
         isLocked = false;
         activeP = activeP === 1 ? 2 : 1;
         resetTurn();
         sendState();
-      }, 1500);
+      }, 1800);
       return;
     }
 
+    draw();
     setMsg("Select dice to bank or roll again.");
   }
 
@@ -434,14 +439,17 @@
     var potentialTotal = scores[activeP] + turnScore + sc.pts;
 
     if (potentialTotal > 10000) {
-      setMsg("OVER 10,000! Turn lost.");
+      turnScore = 0;
       isLocked = true;
+      draw();
+      setMsg("OVER 10,000! Turn lost.");
+      
       setTimeout(function() {
         isLocked = false;
         activeP = activeP === 1 ? 2 : 1;
         resetTurn();
         sendState();
-      }, 1500);
+      }, 1800);
       return;
     }
 
