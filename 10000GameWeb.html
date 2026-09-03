@@ -177,6 +177,7 @@
       if (roomId) {
         targetRoomId = roomId;
         gameMode = "join";
+        myPlayerNum = 2; // Remote client is strictly Player 2
         document.getElementById('mode-select-box').style.display = 'none';
         document.getElementById('p2-input-group').style.display = 'none';
         document.getElementById('p1-label').innerText = "Enter Your Name to Join:";
@@ -194,18 +195,21 @@
   }
 
   function startSetup() {
-    p1Name = document.getElementById('p1').value.trim() || "Player 1";
+    var myEnteredName = document.getElementById('p1').value.trim();
 
     if (gameMode === 'local') {
+      p1Name = myEnteredName || "Player 1";
       p2Name = document.getElementById('p2').value.trim() || "Player 2";
       launchGame();
     } else if (gameMode === 'join') {
       isOnline = true;
+      p2Name = myEnteredName || "Player 2";
       document.getElementById('btn-start').disabled = true;
       document.getElementById('btn-start').innerText = "Connecting...";
       joinOnlineGame(targetRoomId);
     } else {
       isOnline = true;
+      p1Name = myEnteredName || "Player 1";
       document.getElementById('btn-start').disabled = true;
       document.getElementById('link-box').style.display = 'block';
       hostOnlineGame();
@@ -259,22 +263,21 @@
 
   function setupNetworking() {
     conn.on('open', function() {
-      conn.send({ type: 'JOIN', name: p1Name });
+      if (myPlayerNum === 2) {
+        // Guest sends their custom name to Host
+        conn.send({ type: 'GUEST_JOINED', guestName: p2Name });
+      }
     });
+
     conn.on('data', function(data) {
-      if (data.type === 'JOIN') {
-        if (myPlayerNum === 1) {
-          p2Name = data.name;
-          conn.send({ type: 'WELCOME', name: p1Name });
-          launchGame();
-        } else {
-          p2Name = p1Name;
-          p1Name = data.name;
-          launchGame();
-        }
-      } else if (data.type === 'WELCOME') {
-        p2Name = p1Name;
-        p1Name = data.name;
+      if (data.type === 'GUEST_JOINED' && myPlayerNum === 1) {
+        p2Name = data.guestName;
+        // Host broadcasts final verified player names to Guest
+        conn.send({ type: 'INIT_GAME', p1Name: p1Name, p2Name: p2Name });
+        launchGame();
+      } else if (data.type === 'INIT_GAME' && myPlayerNum === 2) {
+        p1Name = data.p1Name;
+        p2Name = data.p2Name;
         launchGame();
       } else if (data.type === 'STATE_SYNC') {
         syncGameState(data.state);
@@ -299,7 +302,6 @@
     hasRolled = state.hasRolled;
     isLocked = state.isLocked;
 
-    // Update banner text, banner color, and bottom message for synced state
     updateTurnBanner();
     draw();
   }
