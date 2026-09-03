@@ -24,7 +24,6 @@
       text-align: center;
       box-shadow: 0 4px 10px rgba(0,0,0,0.5);
       position: relative;
-      transition: transform 0.05s;
     }
     h1 { color: #f59e0b; margin-top: 0; }
     input {
@@ -56,9 +55,7 @@
       padding: 8px 12px;
       font-size: 13px;
     }
-    .mode-btn.active {
-      background: #3b82f6;
-    }
+    .mode-btn.active { background: #3b82f6; }
     .banner {
       padding: 8px;
       font-weight: bold;
@@ -92,13 +89,11 @@
       border-radius: 5px;
       cursor: pointer;
       border: 3px solid transparent;
-      transition: transform 0.1s;
     }
     .die.selected { border-color: #10b981; transform: translateY(-3px); }
     .die.banked { opacity: 0.3; cursor: default; }
     .die.unrolled { background: #475569; color: #94a3b8; }
     .msg { color: #f59e0b; font-weight: bold; min-height: 20px; margin-top: 10px; }
-
     .link-box {
       display: none;
       background: rgba(255,255,255,0.05);
@@ -106,71 +101,9 @@
       border-radius: 5px;
       margin-top: 10px;
     }
-
-    /* FLASHY MELTDOWN EFFECT STYLES */
-    @keyframes meltdowns-shake {
-      0% { transform: translate(0, 0) rotate(0deg); }
-      20% { transform: translate(-8px, 5px) rotate(-3deg); }
-      40% { transform: translate(8px, -5px) rotate(3deg); }
-      60% { transform: translate(-8px, -5px) rotate(-2deg); }
-      80% { transform: translate(8px, 5px) rotate(2deg); }
-      100% { transform: translate(0, 0) rotate(0deg); }
-    }
-
-    @keyframes strobe-bg {
-      0%, 100% { background-color: #1e293b; }
-      25% { background-color: #7f1d1d; }
-      50% { background-color: #dc2626; }
-      75% { background-color: #450a0a; }
-    }
-
-    body.meltdown { animation: strobe-bg 0.15s infinite; }
-    .box.meltdown-shake {
-      animation: meltdowns-shake 0.1s infinite;
-      border: 3px solid #ef4444;
-      box-shadow: 0 0 35px #ef4444;
-    }
-
-    .meltdown-banner {
-      display: none;
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%) scale(0.5);
-      font-size: 42px;
-      font-weight: 900;
-      color: #facc15;
-      text-shadow: 0 0 20px #ef4444, 0 0 40px #ef4444;
-      z-index: 100;
-      pointer-events: none;
-      transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-      white-space: nowrap;
-    }
-
-    .meltdown-banner.show { display: block; transform: translate(-50%, -50%) scale(1.1); }
-
-    /* WINNER HEART ANIMATION */
-    #heart-overlay {
-      position: fixed;
-      top: 0; left: 0; width: 100vw; height: 100vh;
-      pointer-events: none; z-index: 200; display: none;
-      justify-content: center; align-items: center;
-    }
-    .main-heart {
-      font-size: 150px;
-      animation: heart-pop 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards,
-                 heart-explode 0.4s ease-out 0.6s forwards;
-    }
-    @keyframes heart-pop { 0% { transform: scale(0); opacity: 0; } 50% { transform: scale(1.3); } 100% { transform: scale(1); opacity: 1; } }
-    @keyframes heart-explode { 0% { transform: scale(1); opacity: 1; filter: drop-shadow(0 0 0px red); } 50% { transform: scale(2.5); opacity: 0.8; filter: drop-shadow(0 0 50px red); } 100% { transform: scale(4); opacity: 0; filter: drop-shadow(0 0 100px red); } }
-    .particle-heart { position: absolute; font-size: 24px; animation: heart-particle 1.2s ease-out forwards; }
-    @keyframes heart-particle { 0% { transform: translate(0, 0) scale(1) rotate(0deg); opacity: 1; } 100% { transform: translate(var(--tx), var(--ty)) scale(0.2) rotate(var(--rot)); opacity: 0; } }
   </style>
 </head>
 <body>
-
-<div id="heart-overlay"><div class="main-heart">❤️</div></div>
-<div id="meltdown-text" class="meltdown-banner">💥 BUST! 💥</div>
 
 <div class="box" id="game-box">
   <h1>10,000 Dice</h1>
@@ -194,7 +127,7 @@
     <div id="link-box" class="link-box">
       <p style="font-size: 12px; margin: 0 0 5px 0;">Share this link with Player 2:</p>
       <button onclick="copyGameLink()">📋 Copy Invite Link</button>
-      <p id="link-status" style="font-size: 11px; color: #f59e0b; margin: 5px 0 0 0;">Connecting to WebRTC...</p>
+      <p id="link-status" style="font-size: 11px; color: #f59e0b; margin: 5px 0 0 0;">Connecting...</p>
     </div>
   </div>
 
@@ -226,8 +159,8 @@
   var hasRolled = false, isLocked = false, isOnline = false;
   var gameMode = "local";
   var targetRoomId = null;
-  
   var peer = null, conn = null;
+
   var dice = [
     {val: '?', sel: false, bnk: false},
     {val: '?', sel: false, bnk: false},
@@ -237,19 +170,20 @@
     {val: '?', sel: false, bnk: false}
   ];
 
-  // Auto detect if opened from invite link
   window.onload = function() {
-    var urlParams = new URLSearchParams(window.location.search);
-    var roomId = urlParams.get('game');
-    if (roomId) {
-      targetRoomId = roomId;
-      gameMode = "join";
-      document.getElementById('mode-select-box').style.display = 'none';
-      document.getElementById('p2-input-group').style.display = 'none';
-      document.getElementById('p1-label').innerText = "Enter Your Name to Join:";
-      document.getElementById('p1').value = "Player 2";
-      document.getElementById('btn-start').innerText = "Join Game";
-    }
+    try {
+      var urlParams = new URLSearchParams(window.location.search);
+      var roomId = urlParams.get('game');
+      if (roomId) {
+        targetRoomId = roomId;
+        gameMode = "join";
+        document.getElementById('mode-select-box').style.display = 'none';
+        document.getElementById('p2-input-group').style.display = 'none';
+        document.getElementById('p1-label').innerText = "Enter Your Name to Join:";
+        document.getElementById('p1').value = "Player 2";
+        document.getElementById('btn-start').innerText = "Join Game";
+      }
+    } catch(e) { console.log(e); }
   };
 
   function setMode(m) {
@@ -260,8 +194,7 @@
   }
 
   function startSetup() {
-    var enteredName = document.getElementById('p1').value.trim();
-    p1Name = enteredName || (gameMode === 'join' ? "Player 2" : "Player 1");
+    p1Name = document.getElementById('p1').value.trim() || "Player 1";
 
     if (gameMode === 'local') {
       p2Name = document.getElementById('p2').value.trim() || "Player 2";
@@ -280,13 +213,20 @@
   }
 
   function hostOnlineGame() {
+    if (typeof Peer === 'undefined') {
+      alert("PeerJS failed to load. Defaulting to local play.");
+      launchGame();
+      return;
+    }
     peer = new Peer();
     peer.on('open', function(id) {
-      var gameUrl = window.location.origin + window.location.pathname + '?game=' + id;
-      window.currentInviteUrl = gameUrl;
-      document.getElementById('link-status').innerText = "Waiting for Player 2 to join...";
+      window.currentInviteUrl = window.location.origin + window.location.pathname + '?game=' + id;
+      document.getElementById('link-status').innerText = "Waiting for Player 2...";
     });
-
+    peer.on('error', function(err) {
+      alert("Online connection error. Switching to local play.");
+      launchGame();
+    });
     peer.on('connection', function(c) {
       conn = c;
       myPlayerNum = 1;
@@ -295,37 +235,41 @@
   }
 
   function joinOnlineGame(roomId) {
-    isOnline = true;
+    if (typeof Peer === 'undefined') {
+      alert("PeerJS failed to load.");
+      return;
+    }
     myPlayerNum = 2;
     peer = new Peer();
     peer.on('open', function() {
       conn = peer.connect(roomId);
       setupNetworking();
     });
+    peer.on('error', function(err) {
+      alert("Unable to join game room.");
+    });
   }
 
   function copyGameLink() {
     if (window.currentInviteUrl) {
       navigator.clipboard.writeText(window.currentInviteUrl);
-      document.getElementById('link-status').innerText = "Link copied to clipboard!";
+      document.getElementById('link-status').innerText = "Link copied!";
     }
   }
 
   function setupNetworking() {
     conn.on('open', function() {
-      // Send chosen name across WebRTC
       conn.send({ type: 'JOIN', name: p1Name });
     });
-
     conn.on('data', function(data) {
       if (data.type === 'JOIN') {
         if (myPlayerNum === 1) {
-          p2Name = data.name; // Host receives joining player's custom name
+          p2Name = data.name;
           conn.send({ type: 'WELCOME', name: p1Name });
           launchGame();
         } else {
-          p2Name = p1Name; // Player 2 keeps their custom name in slot 2
-          p1Name = data.name; // Player 2 sets slot 1 to Host's name
+          p2Name = p1Name;
+          p1Name = data.name;
           launchGame();
         }
       } else if (data.type === 'WELCOME') {
@@ -342,14 +286,7 @@
     if (isOnline && conn) {
       conn.send({
         type: 'STATE_SYNC',
-        state: {
-          dice: dice,
-          turnScore: turnScore,
-          scores: scores,
-          activeP: activeP,
-          hasRolled: hasRolled,
-          isLocked: isLocked
-        }
+        state: { dice: dice, turnScore: turnScore, scores: scores, activeP: activeP, hasRolled: hasRolled, isLocked: isLocked }
       });
     }
   }
@@ -361,10 +298,6 @@
     activeP = state.activeP;
     hasRolled = state.hasRolled;
     isLocked = state.isLocked;
-    
-    var name = activeP === 1 ? p1Name : p2Name;
-    document.getElementById('turn-banner').innerText = name + "'s Turn";
-    document.getElementById('turn-banner').style.background = activeP === 1 ? '#3b82f6' : '#ec4899';
     draw();
   }
 
@@ -453,62 +386,18 @@
     draw();
 
     if (!canScore) {
-      triggerMeltdown("💥 BUST! 💥", "NO SCORING DICE! TURN LOST!");
+      setMsg("BUST! No scoring dice.");
+      isLocked = true;
+      setTimeout(function() {
+        isLocked = false;
+        activeP = activeP === 1 ? 2 : 1;
+        resetTurn();
+        sendState();
+      }, 1500);
       return;
     }
 
     setMsg("Select dice to bank or roll again.");
-  }
-
-  function triggerMeltdown(bannerText, msgText) {
-    isLocked = true;
-    turnScore = 0;
-    draw();
-
-    var banner = document.getElementById('meltdown-text');
-    banner.innerText = bannerText;
-
-    document.body.classList.add('meltdown');
-    document.getElementById('game-box').classList.add('meltdown-shake');
-    banner.classList.add('show');
-    document.getElementById('btn-roll').disabled = true;
-    document.getElementById('btn-bank').disabled = true;
-    setMsg(msgText);
-
-    setTimeout(function() {
-      document.body.classList.remove('meltdown');
-      document.getElementById('game-box').classList.remove('meltdown-shake');
-      banner.classList.remove('show');
-      isLocked = false;
-      activeP = activeP === 1 ? 2 : 1;
-      resetTurn();
-      sendState();
-    }, 2200);
-  }
-
-  function triggerHeartExplosion() {
-    var overlay = document.getElementById('heart-overlay');
-    overlay.style.display = 'flex';
-
-    setTimeout(function() {
-      for (var i = 0; i < 40; i++) {
-        var particle = document.createElement('div');
-        particle.className = 'particle-heart';
-        particle.innerText = '❤️';
-
-        var angle = Math.random() * Math.PI * 2;
-        var dist = 150 + Math.random() * 350;
-        var tx = Math.cos(angle) * dist + 'px';
-        var ty = Math.sin(angle) * dist + 'px';
-        var rot = (Math.random() * 360 - 180) + 'deg';
-
-        particle.style.setProperty('--tx', tx);
-        particle.style.setProperty('--ty', ty);
-        particle.style.setProperty('--rot', rot);
-
-        overlay.appendChild(particle);
-      }
-    }, 600);
   }
 
   function toggle(i) {
@@ -528,18 +417,24 @@
     var potentialTotal = scores[activeP] + turnScore + sc.pts;
 
     if (potentialTotal > 10000) {
-      triggerMeltdown("💥 OVER 10,000! 💥", "EXCEEDED 10,000! POINTS BUST!");
+      setMsg("OVER 10,000! Turn lost.");
+      isLocked = true;
+      setTimeout(function() {
+        isLocked = false;
+        activeP = activeP === 1 ? 2 : 1;
+        resetTurn();
+        sendState();
+      }, 1500);
       return;
     }
 
     scores[activeP] = potentialTotal;
     if (scores[activeP] === 10000) {
       draw();
-      setMsg((activeP === 1 ? p1Name : p2Name) + " WINS EXACTLY AT 10,000!");
+      setMsg((activeP === 1 ? p1Name : p2Name) + " WINS AT 10,000!");
       document.getElementById('turn-banner').innerText = (activeP === 1 ? p1Name : p2Name) + " WINS!";
       document.getElementById('btn-roll').disabled = true;
       document.getElementById('btn-bank').disabled = true;
-      triggerHeartExplosion();
       return;
     }
 
@@ -554,10 +449,6 @@
     var name = activeP === 1 ? p1Name : p2Name;
     document.getElementById('turn-banner').innerText = name + "'s Turn";
     document.getElementById('turn-banner').style.background = activeP === 1 ? '#3b82f6' : '#ec4899';
-    
-    var isMyTurn = !isOnline || activeP === myPlayerNum;
-    document.getElementById('btn-roll').disabled = !isMyTurn;
-    setMsg(isMyTurn ? (name + ", roll to start.") : ("Waiting for " + name + "..."));
     draw();
   }
 
@@ -579,7 +470,16 @@
     var selVals = [];
     dice.forEach(function(d){ if(d.sel) selVals.push(d.val); });
     var sc = getScore(selVals);
-
     var isMyTurn = !isOnline || activeP === myPlayerNum;
 
-    document.getElementById('s
+    document.getElementById('s1').innerText = scores[1];
+    document.getElementById('s2').innerText = scores[2];
+    document.getElementById('st').innerText = turnScore + (sc.ok ? sc.pts : 0);
+    document.getElementById('btn-roll').disabled = !isMyTurn || isLocked;
+    document.getElementById('btn-bank').disabled = !hasRolled || !sc.ok || !selVals.length || isLocked || !isMyTurn;
+  }
+
+  function setMsg(txt) { document.getElementById('msg').innerText = txt; }
+</script>
+</body>
+</html>
