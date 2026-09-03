@@ -298,7 +298,22 @@
     activeP = state.activeP;
     hasRolled = state.hasRolled;
     isLocked = state.isLocked;
+
+    // Update banner text, banner color, and bottom message for synced state
+    updateTurnBanner();
     draw();
+  }
+
+  function updateTurnBanner() {
+    var name = activeP === 1 ? p1Name : p2Name;
+    var banner = document.getElementById('turn-banner');
+    banner.innerText = name + "'s Turn";
+    banner.style.background = activeP === 1 ? '#3b82f6' : '#ec4899';
+
+    var isMyTurn = !isOnline || activeP === myPlayerNum;
+    if (!hasRolled) {
+      setMsg(isMyTurn ? (name + ", roll to start.") : ("Waiting for " + name + "..."));
+    }
   }
 
   function launchGame() {
@@ -446,9 +461,7 @@
     hasRolled = false;
     turnScore = 0;
     dice.forEach(function(d){ d.val = '?'; d.sel = false; d.bnk = false; });
-    var name = activeP === 1 ? p1Name : p2Name;
-    document.getElementById('turn-banner').innerText = name + "'s Turn";
-    document.getElementById('turn-banner').style.background = activeP === 1 ? '#3b82f6' : '#ec4899';
+    updateTurnBanner();
     draw();
   }
 
