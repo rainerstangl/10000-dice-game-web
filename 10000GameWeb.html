@@ -176,12 +176,12 @@
   <h1>10,000 Dice</h1>
 
   <div id="setup">
-    <div class="mode-select">
+    <div id="mode-select-box" class="mode-select">
       <button class="mode-btn active" id="btn-local" onclick="setMode('local')">Local Play</button>
       <button class="mode-btn" id="btn-online" onclick="setMode('online')">Online Link</button>
     </div>
 
-    <p>Your Name:</p>
+    <p id="p1-label">Your Name:</p>
     <input type="text" id="p1" value="Player 1">
     
     <div id="p2-input-group">
@@ -225,6 +225,7 @@
   var turnScore = 0;
   var hasRolled = false, isLocked = false, isOnline = false;
   var gameMode = "local";
+  var targetRoomId = null;
   
   var peer = null, conn = null;
   var dice = [
@@ -241,9 +242,13 @@
     var urlParams = new URLSearchParams(window.location.search);
     var roomId = urlParams.get('game');
     if (roomId) {
-      setMode('online');
-      document.getElementById('setup').innerHTML = '<h3>Joining Online Game...</h3><p id="join-status">Connecting to Host...</p>';
-      joinOnlineGame(roomId);
+      targetRoomId = roomId;
+      gameMode = "join";
+      document.getElementById('mode-select-box').style.display = 'none';
+      document.getElementById('p2-input-group').style.display = 'none';
+      document.getElementById('p1-label').innerText = "Enter Your Name to Join:";
+      document.getElementById('p1').value = "Player 2";
+      document.getElementById('btn-start').innerText = "Join Game";
     }
   };
 
@@ -255,10 +260,17 @@
   }
 
   function startSetup() {
-    p1Name = document.getElementById('p1').value || "Player 1";
+    var enteredName = document.getElementById('p1').value.trim();
+    p1Name = enteredName || (gameMode === 'join' ? "Player 2" : "Player 1");
+
     if (gameMode === 'local') {
-      p2Name = document.getElementById('p2').value || "Player 2";
+      p2Name = document.getElementById('p2').value.trim() || "Player 2";
       launchGame();
+    } else if (gameMode === 'join') {
+      isOnline = true;
+      document.getElementById('btn-start').disabled = true;
+      document.getElementById('btn-start').innerText = "Connecting...";
+      joinOnlineGame(targetRoomId);
     } else {
       isOnline = true;
       document.getElementById('btn-start').disabled = true;
@@ -301,21 +313,25 @@
 
   function setupNetworking() {
     conn.on('open', function() {
-      // Exchange names
+      // Send chosen name across WebRTC
       conn.send({ type: 'JOIN', name: p1Name });
     });
 
     conn.on('data', function(data) {
       if (data.type === 'JOIN') {
         if (myPlayerNum === 1) {
-          p2Name = data.name;
+          p2Name = data.name; // Host receives joining player's custom name
           conn.send({ type: 'WELCOME', name: p1Name });
           launchGame();
         } else {
-          p2Name = p1Name; // My name as P2
-          p1Name = data.name; // Host name as P1
+          p2Name = p1Name; // Player 2 keeps their custom name in slot 2
+          p1Name = data.name; // Player 2 sets slot 1 to Host's name
           launchGame();
         }
+      } else if (data.type === 'WELCOME') {
+        p2Name = p1Name;
+        p1Name = data.name;
+        launchGame();
       } else if (data.type === 'STATE_SYNC') {
         syncGameState(data.state);
       }
@@ -566,14 +582,4 @@
 
     var isMyTurn = !isOnline || activeP === myPlayerNum;
 
-    document.getElementById('s1').innerText = scores[1];
-    document.getElementById('s2').innerText = scores[2];
-    document.getElementById('st').innerText = turnScore + (sc.ok ? sc.pts : 0);
-    document.getElementById('btn-roll').disabled = !isMyTurn || isLocked;
-    document.getElementById('btn-bank').disabled = !hasRolled || !sc.ok || !selVals.length || isLocked || !isMyTurn;
-  }
-
-  function setMsg(txt) { document.getElementById('msg').innerText = txt; }
-</script>
-</body>
-</html>
+    document.getElementById('s
