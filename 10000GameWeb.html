@@ -364,13 +364,24 @@
     }
   }
 
+  // Default PeerJS config only supplies STUN, so direct connections fail behind
+  // symmetric NAT / corporate firewalls. Add a public TURN relay as fallback.
+  var ICE_CONFIG = {
+    iceServers: [
+      { urls: 'stun:stun.l.google.com:19302' },
+      { urls: 'turn:openrelay.metered.ca:80', username: 'openrelayproject', credential: 'openrelayproject' },
+      { urls: 'turn:openrelay.metered.ca:443', username: 'openrelayproject', credential: 'openrelayproject' },
+      { urls: 'turn:openrelay.metered.ca:443?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' }
+    ]
+  };
+
   function hostOnlineGame() {
     if (typeof Peer === 'undefined') {
       alert("PeerJS failed to load. Defaulting to local play.");
       launchGame();
       return;
     }
-    peer = new Peer();
+    peer = new Peer(undefined, { config: ICE_CONFIG });
     peer.on('open', function(id) {
       window.currentInviteUrl = window.location.origin + window.location.pathname + '?game=' + id;
       document.getElementById('link-status').innerText = "Waiting for Player 2...";
@@ -392,10 +403,21 @@
       return;
     }
     myPlayerNum = 2;
-    peer = new Peer();
+    peer = new Peer(undefined, { config: ICE_CONFIG });
     peer.on('open', function() {
       conn = peer.connect(roomId);
       setupNetworking();
+
+      var connectTimeout = setTimeout(function() {
+        if (!conn.open) {
+          document.getElementById('btn-start').disabled = false;
+          document.getElementById('btn-start').innerText = "Join Game";
+          alert("Could not connect to the host. This is often caused by a restrictive network or firewall. Please try again, or try a different network.");
+        }
+      }, 15000);
+
+      conn.on('open', function() { clearTimeout(connectTimeout); });
+      conn.on('error', function() { clearTimeout(connectTimeout); });
     });
     peer.on('error', function(err) {
       alert("Unable to join game room.");
@@ -414,6 +436,15 @@
       if (myPlayerNum === 2) {
         conn.send({ type: 'GUEST_JOINED', guestName: p2Name });
       }
+    });
+
+    conn.on('error', function(err) {
+      console.log(err);
+      alert("Connection to the other player was lost.");
+    });
+
+    conn.on('close', function() {
+      alert("Connection to the other player was lost.");
     });
 
     conn.on('data', function(data) {
